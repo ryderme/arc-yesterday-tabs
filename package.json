@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "prebuild": "mkdir -p dist/images",
+    "build": "npm run prebuild && tsc && echo 'TypeScript compilation complete' && cp src/popup.html dist/ && cp src/styles.css dist/ && cp manifest.json dist/ && cp -r images dist/ && echo 'Copied files' && ls -l dist/",
+    "build:prod": "npm run prebuild && tsc && terser dist/background.js -c drop_console=true,drop_debugger=true -o dist/background.js && terser dist/popup.js -c drop_console=true,drop_debugger=true -o dist/popup.js && echo 'TypeScript compilation and minification complete' && cp src/popup.html dist/ && cp src/styles.css dist/ && cp manifest.json dist/ && cp -r images dist/ && echo 'Copied files' && ls -l dist/"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.270",
+    "terser": "^5.16.1",
+    "typescript": "^4.9.5"
+  }
+}
