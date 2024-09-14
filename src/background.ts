@@ -10,6 +10,26 @@ interface TabCloseInfo {
 let closedTabs: TabCloseInfo[] = [];
 let tabUrlMap: Map<number, string> = new Map();
 
+async function initializeClosedTabs() {
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayMidnight = new Date(todayMidnight.getTime() - 24 * 60 * 60 * 1000);
+
+  const history = await chrome.history.search({
+    text: '',
+    startTime: yesterdayMidnight.getTime(),
+    endTime: now.getTime(),
+    maxResults: 1000
+  });
+
+  closedTabs = history.map(item => ({
+    url: item.url,
+    closeTime: item.lastVisitTime || Date.now()
+  }));
+
+  console.log(`从历史记录中初始化了 ${closedTabs.length} 个关闭的标签页`);
+}
+
 chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
   console.log('onRemoved', tabId, removeInfo);
   
@@ -30,48 +50,36 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-async function getLastDayTabs(): Promise<chrome.history.HistoryItem[]> {
-  const now = new Date();
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  console.log('搜索历史记录,开始时间:', yesterday.toISOString());
-  const history = await chrome.history.search({
-    text: '',
-    startTime: yesterday.getTime(),
-    endTime: now.getTime(),
-    maxResults: 1000
-  });
-
-  console.log(`找到 ${history.length} 条历史记录`);
-
-  const filteredTabs = history.filter(item => {
-    if (item.lastVisitTime === undefined) {
-      return false;
-    }
-    const itemDate = new Date(item.lastVisitTime);
-    return itemDate >= todayMidnight;
-  });
-
-  console.log(`筛选后剩余 ${filteredTabs.length} 个标签页`);
-  return filteredTabs;
-}
-
-async function reopenTabs(tabs: chrome.history.HistoryItem[]): Promise<number> {
+async function reopenTabs(): Promise<number> {
   console.log(`准备重新打开标签页`);
   const currentTabs = await chrome.tabs.query({});
   const currentUrls = new Set(currentTabs.map(tab => tab.url));
 
-  const tabsToReopen = new Set(
-    closedTabs
-      .map(tab => tab.url)
-      .filter((url): url is string => url !== undefined && !currentUrls.has(url))
-  );
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+
+  const tabsToReopen: TabCloseInfo[] = [];
+  
+  closedTabs.forEach(tab => {
+    const closeDate = new Date(tab.closeTime);
+    if (closeDate < todayMidnight) {
+      console.log(`标签页不重新打开: ${tab.url} - 关闭时间早于今天凌晨`);
+    } else if (closeDate >= todayNoon) {
+      console.log(`标签页不重新打开: ${tab.url} - 关闭时间晚于今天中午`);
+    } else if (!tab.url) {
+      console.log(`标签页不重新打开: URL 为空`);
+    } else if (currentUrls.has(tab.url)) {
+      console.log(`标签页不重新打开: ${tab.url} - 已经打开`);
+    } else {
+      tabsToReopen.push(tab);
+    }
+  });
 
   let openedTabsCount = 0;
 
-  for (const tab of tabs) {
-    if (tab.url && tabsToReopen.has(tab.url)) {
+  for (const tab of tabsToReopen) {
+    if (tab.url) {
       try {
         await chrome.tabs.create({ url: tab.url });
         console.log(`成功打开标签页: ${tab.url}`);
@@ -79,8 +87,6 @@ async function reopenTabs(tabs: chrome.history.HistoryItem[]): Promise<number> {
       } catch (error) {
         console.error(`打开标签页失败 ${tab.url}:`, error);
       }
-    } else if (tab.url) {
-      console.log(`标签页不需要重新打开或已经打开,跳过: ${tab.url}`);
     }
   }
   console.log(`重新打开了 ${openedTabsCount} 个标签页`);
@@ -89,17 +95,19 @@ async function reopenTabs(tabs: chrome.history.HistoryItem[]): Promise<number> {
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Arc Yesterday\'s Tabs 插件已安装');
+  initializeClosedTabs();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  console.log('浏览器启动，初始化关闭的标签页');
+  initializeClosedTabs();
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('收到消息:', request);
   if (request.action === 'reopenYesterdayTabs') {
-    console.log('开始获取过去24小时内的标签页');
-    getLastDayTabs()
-      .then(tabs => {
-        console.log(`找到 ${tabs.length} 个符合条件的标签页`);
-        return reopenTabs(tabs);
-      })
+    console.log('开始重新打开今天关闭的标签页');
+    reopenTabs()
       .then((openedTabsCount) => {
         console.log(`重新打开了 ${openedTabsCount} 个标签页`);
         console.log('关闭的标签页信息:', closedTabs);
