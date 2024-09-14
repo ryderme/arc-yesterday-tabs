@@ -12,11 +12,13 @@ document.addEventListener('DOMContentLoaded', () => {
           if (response.openedTabsCount > 0) {
             console.log(`成功重新打开了 ${response.openedTabsCount} 个标签页`);
           } else {
-            alert('No tabs found to reopen');
+            console.log('No tabs found to reopen');
           }
         } else {
-          alert('操作失败: ' + response.error);
+          console.error('操作失败: ' + response.error);
         }
+        // 操作完成后立即关闭弹窗
+        window.close();
       }
     );
   });

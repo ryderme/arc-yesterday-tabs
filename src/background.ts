@@ -52,6 +52,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 async function reopenTabs(): Promise<number> {
   console.log(`准备重新打开标签页`);
+  console.log('关闭的标签页信息:', closedTabs);
   const currentTabs = await chrome.tabs.query({});
   const currentUrls = new Set(currentTabs.map(tab => tab.url));
 
@@ -89,7 +90,6 @@ async function reopenTabs(): Promise<number> {
       }
     }
   }
-  console.log(`重新打开了 ${openedTabsCount} 个标签页`);
   return openedTabsCount;
 }
 
@@ -110,7 +110,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     reopenTabs()
       .then((openedTabsCount) => {
         console.log(`重新打开了 ${openedTabsCount} 个标签页`);
-        console.log('关闭的标签页信息:', closedTabs);
         sendResponse({ success: true, openedTabsCount });
       })
       .catch(error => {
