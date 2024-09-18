@@ -33,14 +33,25 @@ async function initializeClosedTabs() {
 chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
   console.log('onRemoved', tabId, removeInfo);
   
-  closedTabs.push({
-    url: tabUrlMap.get(tabId),
-    closeTime: Date.now()
-  });
+  const url = tabUrlMap.get(tabId);
+  const closeTime = Date.now();
+
+  // 查找是否已存在相同 URL 的条目
+  const existingIndex = closedTabs.findIndex(tab => tab.url === url);
+
+  if (existingIndex !== -1) {
+    // 如果存在，更新关闭时间
+    closedTabs[existingIndex].closeTime = closeTime;
+    console.log(`更新已存在的标签页关闭时间: ${url}`);
+  } else {
+    // 如果不存在，添加新条目
+    closedTabs.push({ url, closeTime });
+    console.log(`添加新的关闭标签页: ${url}`);
+  }
   
   tabUrlMap.delete(tabId);
   
-  console.log(`标签页关闭: ID ${tabId} at ${new Date().toISOString()}`);
+  console.log(`标签页关闭: ID ${tabId} at ${new Date(closeTime).toISOString()}`);
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
