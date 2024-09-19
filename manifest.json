@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Arc Yesterday's Tabs",
-  "version": "4.0",
+  "version": "5.0",
   "description": "一键打开昨天自动关闭的标签页",
   "permissions": [
     "tabs",

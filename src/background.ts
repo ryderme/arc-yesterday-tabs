@@ -70,13 +70,14 @@ async function reopenTabs(): Promise<number> {
   const now = new Date();
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const todayNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+  const yesterdayEightPM = new Date(todayMidnight.getTime() - 4 * 60 * 60 * 1000); // 昨天晚上 8 点
 
   const tabsToReopen: TabCloseInfo[] = [];
   
   closedTabs.forEach(tab => {
     const closeDate = new Date(tab.closeTime);
-    if (closeDate < todayMidnight) {
-      console.log(`标签页不重新打开: ${tab.url} - 关闭时间早于今天凌晨`);
+    if (closeDate < yesterdayEightPM) {
+      console.log(`标签页不重新打开: ${tab.url} - 关闭时间早于昨天晚上 8 点`);
     } else if (closeDate >= todayNoon) {
       console.log(`标签页不重新打开: ${tab.url} - 关闭时间晚于今天中午`);
     } else if (!tab.url) {
